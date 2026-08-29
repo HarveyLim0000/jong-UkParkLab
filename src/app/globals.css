@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand palette — deep navy only. No other hue. */
+  --color-navy-900: #0e2137;
+  --color-navy-700: #16324f;
+  --color-navy-500: #2f5680;
+  --color-navy-100: #e8edf3;
+
+  --color-ink: #1c1c1c;      /* body text on white — 15:1 */
+  --color-muted: #55606e;    /* secondary text on white — 6.4:1 */
+  --color-line: #dde2e8;
+  --color-surface: #f6f8fa;
+
+  --font-serif: var(--font-heading), Georgia, serif;
+  --font-sans: var(--font-body), system-ui, sans-serif;
+
+  /* 1.25 scale */
+  --text-xs: 0.8125rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5625rem;
+  --text-2xl: 1.9531rem;
+  --text-3xl: 2.4414rem;
+  --text-4xl: 3.0518rem;
+
+  --radius-card: 14px;
+}
+
+body {
+  background: #fff;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  line-height: 1.65;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-serif);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--color-navy-900);
+}
+
+a { text-underline-offset: 3px; }
+
+:focus-visible {
+  outline: 2px solid var(--color-navy-700);
+  outline-offset: 2px;
+}
