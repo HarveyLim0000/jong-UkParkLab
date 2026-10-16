@@ -1,59 +1,50 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Source_Serif_4, IBM_Plex_Sans } from "next/font/google";
+import Image from "next/image";
+import { Lora } from "next/font/google";
 import Nav from "@/components/nav";
 import { LAB } from "@/lib/content";
 import "./globals.css";
 
-const heading = Source_Serif_4({
-  variable: "--font-heading",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const body = IBM_Plex_Sans({
-  variable: "--font-body",
-  weight: ["400", "500", "600"],
+const lora = Lora({
+  variable: "--font-lora",
   subsets: ["latin"],
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: { default: LAB.name, template: `%s · ${LAB.name}` },
+  title: { default: LAB.shortName, template: `%s · ${LAB.shortName}` },
   description: LAB.tagline,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${heading.variable} ${body.variable} h-full antialiased`}>
+    <html lang="en" className={`${lora.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        <header className="border-b border-line">
-          <div className="mx-auto max-w-5xl px-6 py-5 flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between">
-            <Link href="/" className="font-serif text-lg font-semibold text-navy-900">
-              {LAB.name}
-            </Link>
-            <Nav />
-          </div>
-        </header>
+        <Nav />
 
         <main className="flex-1">{children}</main>
 
-        <footer className="border-t border-line mt-24">
-          <div className="mx-auto max-w-5xl px-6 py-10 text-sm text-muted flex flex-col gap-2 sm:flex-row sm:justify-between">
-            <p>
-              {LAB.name}, {LAB.affiliation}
-              <br />
-              {LAB.address}
+        <footer className="site-footer py-8">
+          <div className="container grid gap-6 sm:grid-cols-3 sm:items-center">
+            <div className="footer-text">
+              <p className="footer-label font-semibold">Address.</p>
+              {LAB.addressLines.map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+            </div>
+            <p className="footer-text sm:text-center">
+              © 2026 {LAB.name} All rights reserved.
             </p>
-            <p className="sm:text-right">
-              <a href={`mailto:${LAB.email}`} className="underline hover:text-navy-700">
-                {LAB.email}
-              </a>
-              <br />
-              <Link href="/privacy" className="underline hover:text-navy-700">
-                Privacy Policy
-              </Link>
-            </p>
+            <div className="sm:justify-self-end sm:mr-8">
+              <Image
+                src="/images/logo.png"
+                alt={LAB.shortName}
+                className="footer-logo"
+                width={921}
+                height={240}
+                sizes="(max-width: 480px) 90px, 135px"
+              />
+            </div>
           </div>
         </footer>
       </body>

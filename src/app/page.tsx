@@ -1,65 +1,75 @@
 import Link from "next/link";
-import { LAB, TOPICS, PUBLICATIONS } from "@/lib/content";
+import Ecg from "@/components/ecg";
+import { LAB, TOPICS, NEWS } from "@/lib/content";
 
 export default function Home() {
-  const recent = [...PUBLICATIONS].sort((a, b) => b.year - a.year).slice(0, 3);
-
   return (
-    <div className="mx-auto max-w-5xl px-6">
-      <section className="pt-16 pb-10">
-        <h1 className="text-3xl sm:text-4xl max-w-3xl">{LAB.name}</h1>
-        <p className="mt-5 text-lg text-muted max-w-2xl">{LAB.tagline}</p>
-      </section>
+    <>
+      <div className="container">
+        <section className="hero-text">
+          <h1>{LAB.name}</h1>
+          <h3>{LAB.tagline}</h3>
+        </section>
+      </div>
 
-      {/* Replace with <video autoPlay muted loop playsInline poster="…" src="…" /> */}
-      <figure className="aspect-[16/7] rounded-card bg-surface border border-line grid place-items-center">
-        <figcaption className="text-sm text-muted">
-          Hero video or image — 1600×700 or wider
-        </figcaption>
-      </figure>
+      <Ecg />
 
-      <section className="pt-20">
-        <h2 className="text-2xl">Research</h2>
-        <div className="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          {TOPICS.map((t) => (
-            <article key={t.slug}>
-              <div className="aspect-[4/3] rounded-card bg-surface border border-line" />
-              <h3 className="mt-4 text-lg">{t.title}</h3>
-              <p className="mt-2 text-sm text-muted">{t.summary}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      <div className="container">
+        <section className="section">
+          <p className="prose">
+            <strong>
+              <em>{LAB.welcomeLead}</em>
+            </strong>{" "}
+            {LAB.welcome}
+          </p>
+        </section>
 
-      <section className="pt-20">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-2xl">Recent Publications</h2>
-          <Link href="/publications" className="text-sm text-navy-700 underline">
-            All publications
-          </Link>
-        </div>
-        <ul className="mt-6 divide-y divide-line border-t border-line">
-          {recent.map((p) => (
-            <li key={p.title} className="py-4">
-              <p className="font-medium">{p.title}</p>
-              <p className="text-sm text-muted">
-                {p.venue}, {p.year}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </section>
+        {TOPICS.length > 0 && (
+          <section className="section">
+            <h3 className="section-title">Research</h3>
+            <div className="grid-3">
+              {TOPICS.map((t) => (
+                <article key={t.slug}>
+                  <div className="image-wrapper" />
+                  <div className="grid-item-date">{t.title}</div>
+                  <div className="grid-item-text">{t.summary}</div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
 
-      <section className="pt-20">
-        <h2 className="text-2xl">Join the lab</h2>
-        <p className="mt-3 text-muted max-w-2xl">
-          We are looking for graduate students and postdoctoral researchers.{" "}
-          <Link href="/contact" className="text-navy-700 underline">
-            See how to apply
-          </Link>
-          .
-        </p>
-      </section>
-    </div>
+        {NEWS.length > 0 && (
+          <section className="section">
+            <h3 className="section-title">News</h3>
+            <div className="grid-3">
+              {NEWS.map((n) => (
+                <article key={n.date + n.text}>
+                  <div className="image-wrapper" />
+                  <div className="grid-item-date">{n.date}</div>
+                  <div className="grid-item-text">{n.text}</div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="section">
+          <h3 className="section-title">Contact</h3>
+          <p className="prose">
+            If you would like to join the lab, collaborate on a research project, or
+            have any question about our work, please contact us at{" "}
+            <a href={`mailto:${LAB.email}`} className="accent font-semibold">
+              {LAB.email}
+            </a>
+            . Details on open positions are on the{" "}
+            <Link href="/contact" className="accent">
+              Contact
+            </Link>{" "}
+            page.
+          </p>
+        </section>
+      </div>
+    </>
   );
 }

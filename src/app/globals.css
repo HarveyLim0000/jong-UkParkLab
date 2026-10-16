@@ -1,50 +1,344 @@
 @import "tailwindcss";
 
+/*
+ * Layout follows the conventions of academic lab sites: one serif, black on
+ * white, a 960px column, no borders / cards / shadows / rounded corners.
+ * Accent #8C1D18 and the ECG hero are this lab's own.
+ */
+
 @theme {
-  /* Brand palette — deep navy only. No other hue. */
-  --color-navy-900: #0e2137;
-  --color-navy-700: #16324f;
-  --color-navy-500: #2f5680;
-  --color-navy-100: #e8edf3;
+  --color-ink: #000000;
+  --color-accent: #8c1d18;
+  --color-paper: #ffffff;
+  --color-placeholder: #ebebeb; /* stands in for photos not supplied yet */
+  --font-serif: var(--font-lora), Georgia, serif;
+  --font-sans: var(--font-lora), Georgia, serif;
+}
 
-  --color-ink: #1c1c1c;      /* body text on white — 15:1 */
-  --color-muted: #55606e;    /* secondary text on white — 6.4:1 */
-  --color-line: #dde2e8;
-  --color-surface: #f6f8fa;
-
-  --font-serif: var(--font-heading), Georgia, serif;
-  --font-sans: var(--font-body), system-ui, sans-serif;
-
-  /* 1.25 scale */
-  --text-xs: 0.8125rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-lg: 1.25rem;
-  --text-xl: 1.5625rem;
-  --text-2xl: 1.9531rem;
-  --text-3xl: 2.4414rem;
-  --text-4xl: 3.0518rem;
-
-  --radius-card: 14px;
+* {
+  font-family: var(--font-serif);
 }
 
 body {
-  background: #fff;
+  background: var(--color-paper);
   color: var(--color-ink);
-  font-family: var(--font-sans);
-  line-height: 1.65;
 }
 
-h1, h2, h3 {
-  font-family: var(--font-serif);
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  color: var(--color-navy-900);
+/* --- layout --------------------------------------------------------- */
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding-inline: 1rem;
+  width: 100%;
 }
 
-a { text-underline-offset: 3px; }
+.site-nav {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  background: transparent;
+  /* thin band of the scrolled colour, always visible along the very top */
+  border-top: 8px solid #f5f5f5;
+  transition: background 0.2s ease;
+  z-index: 1000;
+}
+
+.site-nav.scrolled {
+  background: #f5f5f5;
+}
+
+.nav-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0.8rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-links {
+  display: flex;
+  gap: 2rem;
+}
+
+.nav-links a {
+  color: #000;
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 3px;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.nav-toggle span {
+  display: block;
+  height: 1.5px;
+  width: 100%;
+  background: #6b6b6b;
+}
+
+@media (max-width: 768px) {
+  .nav-toggle {
+    display: flex;
+    /* bars sit 2.5px inside the 20px logo row, so trim that off the right
+       inset to keep the gap above and beside the button identical */
+    margin-right: 0.15rem;
+  }
+  .nav-inner {
+    /* extra room under the logo row so the bar doesn't feel cramped */
+    padding: 1rem 1rem 1.5rem;
+    flex-wrap: wrap;
+  }
+  .nav-links {
+    display: none;
+    flex-basis: 100%;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.75rem 0 0.25rem;
+  }
+  .site-nav.open .nav-links {
+    display: flex;
+  }
+  .nav-links a {
+    padding: 0.4rem 0;
+  }
+}
+
+/* --- home ----------------------------------------------------------- */
+
+.hero-text {
+  padding: 10rem 1rem 3rem 1rem;
+}
+
+.hero-text h1 {
+  font-size: 2.3rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.hero-text h3 {
+  font-size: 1.3rem;
+  font-weight: normal;
+}
+
+/* --- ECG dot field -------------------------------------------------- */
+
+.ecg-band {
+  width: 100%;
+  height: 30vh;
+  min-height: 240px;
+}
+
+.ecg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* --- shared sections ------------------------------------------------ */
+
+.page-top {
+  padding-top: 8rem;
+}
+
+.section {
+  padding: 3rem 0;
+}
+
+.section-title {
+  font-size: 2rem;
+  margin-bottom: 3rem;
+  padding-inline: 1rem;
+}
+
+/* list-style sections (publications) sit closer to their heading */
+.section-title.tight {
+  margin-bottom: 1rem;
+}
+
+.prose {
+  padding-inline: 1rem;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.prose em,
+.prose strong,
+a.accent {
+  color: var(--color-accent);
+}
+
+/* marks a title that links out to the journal article */
+.link-arrow {
+  color: #666;
+  display: inline-block;
+  font-size: 0.8em;
+  vertical-align: 0.15em;
+}
+
+a:hover .link-arrow {
+  transform: translate(1px, -1px);
+}
+
+.prose em {
+  font-style: italic;
+}
+
+.grid-3 {
+  padding-inline: 1rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
+.grid-item-date {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.grid-item-text {
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.image-wrapper {
+  position: relative;
+  width: 100%;
+  padding-top: 75%;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  background: var(--color-placeholder);
+}
+
+.image-wrapper img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.list {
+  padding-inline: 1rem;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.list > li + li {
+  margin-top: 1.5rem;
+}
+
+.meta {
+  font-size: 1rem;
+}
+
+@media (max-width: 768px) {
+  .hero-text {
+    padding: 10rem 1rem 2rem 1rem;
+  }
+  .grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-text {
+    padding: 5rem 1rem 2rem 1rem;
+  }
+  .hero-text h1 {
+    font-size: 1.5rem;
+  }
+  .hero-text h3 {
+    font-size: 1.1rem;
+    line-height: 1.3;
+  }
+  .ecg-band {
+    height: 22vh;
+    min-height: 160px;
+  }
+  .page-top {
+    padding-top: 5rem;
+  }
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+  .section-title {
+    font-size: 1.5rem;
+    margin-bottom: 2rem;
+  }
+}
 
 :focus-visible {
-  outline: 2px solid var(--color-navy-700);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+.image-wrapper.portrait {
+  padding-top: 125%;
+}
+
+/* single-column mobile grid would blow portraits up to full width */
+@media (max-width: 480px) {
+  .image-wrapper.portrait {
+    max-width: 200px;
+  }
+}
+
+/* --- logo (reference: height 30px, 20px under 480px) ----------------- */
+
+.logo {
+  height: 30px;
+  width: auto;
+}
+
+@media (max-width: 480px) {
+  .logo {
+    height: 20px;
+  }
+}
+
+/* --- footer logo (reference: 35px, 23px under 480px) ----------------- */
+
+.footer-logo {
+  height: 35px;
+  width: auto;
+}
+
+@media (max-width: 480px) {
+  .footer-logo {
+    height: 23px;
+  }
+}
+
+/* --- footer ---------------------------------------------------------- */
+
+.site-footer {
+  background: var(--color-accent);
+  color: var(--color-paper);
+}
+
+/* single black logo asset, flipped to white for the accent footer */
+.site-footer .footer-logo {
+  filter: brightness(0) invert(1);
+}
+
+.footer-label {
+  color: #d9d9d9;
+}
+
+.footer-text {
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
