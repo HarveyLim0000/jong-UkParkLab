@@ -9,37 +9,62 @@ import { useEffect, useRef } from "react";
  * screenfuls look alike.
  */
 
-const RR = [1.0, 0.78, 1.22, 0.92, 1.34, 0.84, 1.06, 0.74, 1.18, 0.96];
+// One row per beat: RR interval, then P, R, S, T amplitudes. Every beat is a
+// little different, as in a real recording.
+const BEATS = [
+  [1.0, 0.12, 1.0, 0.4, 0.28],
+  [0.78, 0.07, 0.84, 0.5, 0.2],
+  [1.22, 0.16, 0.96, 0.3, 0.36],
+  [0.92, 0.1, 0.78, 0.46, 0.24],
+  [1.34, 0.14, 1.0, 0.34, 0.38],
+  [0.84, 0.05, 0.9, 0.52, 0.18],
+  [1.06, 0.13, 0.82, 0.38, 0.3],
+  [0.74, 0.08, 0.72, 0.44, 0.16],
+  [1.18, 0.17, 0.98, 0.32, 0.34],
+  [0.96, 0.11, 0.86, 0.42, 0.26],
+];
 const BEAT_PX = 160; // baseline beat spacing
 const COMPLEX_PX = 105; // P-QRS-T lasts the same time whatever the interval
 const SPACING = 16; // dot grid pitch
-const SPEED = 95; // px per second
-const SUB = 5; // sub-samples per dot column, so Q and S are never skipped
+const SPEED = 40; // px per second
+const STEP = 2; // px between signal samples
 
 const STARTS: number[] = [];
 let cycle = 0;
-for (const rr of RR) {
+for (const [rr] of BEATS) {
   STARTS.push(cycle);
   cycle += rr * BEAT_PX;
 }
 
-/** Normalised P-QRS-T amplitude over one complex. */
-function complex(p: number) {
+/** 0 → 1 → 0 straight-line spike over [a, b]. */
+const tri = (p: number, a: number, b: number) => 1 - Math.abs((2 * (p - a)) / (b - a) - 1);
+
+/** Normalised P-QRS-T amplitude over one complex. QRS is straight-edged so the peaks stay pointed. */
+function complex(p: number, [, P, R, S, T]: number[]) {
   if (p < 0.08 || p >= 0.8) return 0;
-  if (p < 0.2) return 0.14 * Math.sin((Math.PI * (p - 0.08)) / 0.12); // P
-  if (p < 0.28) return 0;
-  if (p < 0.34) return -0.22 * Math.sin((Math.PI * (p - 0.28)) / 0.06); // Q
-  if (p < 0.4) return Math.sin((Math.PI * (p - 0.34)) / 0.06); // R
-  if (p < 0.48) return -0.48 * Math.sin((Math.PI * (p - 0.4)) / 0.08); // S
-  if (p < 0.56) return 0;
-  return 0.3 * Math.sin((Math.PI * (p - 0.56)) / 0.24); // T
+  if (p < 0.2) return P * Math.sin((Math.PI * (p - 0.08)) / 0.12); // P
+  if (p < 0.3) return 0;
+  if (p < 0.33) return -0.2 * tri(p, 0.3, 0.33); // Q
+  if (p < 0.39) return R * tri(p, 0.33, 0.39); // R
+  if (p < 0.43) return -S * tri(p, 0.39, 0.43); // S
+  if (p < 0.54) return 0;
+  return T * Math.sin((Math.PI * (p - 0.54)) / 0.26); // T
 }
 
 function amplitudeAt(d: number) {
   const dd = ((d % cycle) + cycle) % cycle;
   let i = STARTS.length - 1;
   while (i > 0 && STARTS[i] > dd) i -= 1;
-  return complex((dd - STARTS[i]) / COMPLEX_PX);
+  // Slow baseline wander; whole periods per cycle so the loop has no seam.
+  const wander = 0.04 * Math.sin((4 * Math.PI * dd) / cycle);
+  return complex((dd - STARTS[i]) / COMPLEX_PX, BEATS[i]) + wander;
+}
+
+/** Distance from (px, py) to the segment (0, y1)–(STEP, y2). */
+function segDist(px: number, py: number, y1: number, y2: number) {
+  const dy = y2 - y1;
+  const t = Math.min(1, Math.max(0, (px * STEP + (py - y1) * dy) / (STEP * STEP + dy * dy)));
+  return Math.hypot(px - t * STEP, py - y1 - t * dy);
 }
 
 export default function Ecg() {
@@ -72,28 +97,37 @@ export default function Ecg() {
       ctx.clearRect(0, 0, width, height);
       const mid = height / 2;
       const gain = height * 0.46;
-      const reach = SPACING * 1.5;
-      const half = SPACING / 2;
+      const reach = SPACING * 0.8;
 
-      for (let x = half; x < width; x += SPACING) {
-        // Q and S are narrower than the dot pitch, so take the range the signal
-        // covers across this column rather than a single reading at its centre.
-        let lo = Infinity;
-        let hi = -Infinity;
-        for (let i = 0; i < SUB; i += 1) {
-          const v = mid - amplitudeAt(x - half + (SPACING * i) / (SUB - 1) + shift) * gain;
-          if (v < lo) lo = v;
-          if (v > hi) hi = v;
-        }
+      // Light each dot by its true distance to the trace, so brightness changes
+      // smoothly as the wave moves instead of popping column by column.
+      const x0 = -reach;
+      const ys: number[] = [];
+      for (let x = x0; x <= width + reach + STEP; x += STEP) {
+        ys.push(mid - amplitudeAt(x + shift) * gain);
+      }
+
+      for (let x = SPACING / 2; x < width; x += SPACING) {
+        const first = Math.floor((x - reach - x0) / STEP);
+        const last = Math.ceil((x + reach - x0) / STEP);
         for (let y = SPACING / 2; y < height; y += SPACING) {
-          const gap = y < lo ? lo - y : y > hi ? y - hi : 0;
-          const k = Math.max(0, 1 - gap / reach);
-          const r = 1.1 + 2.8 * k * k;
+          let near = Infinity;
+          for (let i = first; i < last; i += 1) {
+            near = Math.min(near, segDist(x - x0 - i * STEP, y, ys[i], ys[i + 1]));
+          }
+          const k = Math.max(0, 1 - near / reach);
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = idle;
           ctx.beginPath();
-          ctx.arc(x, y, r, 0, Math.PI * 2);
-          ctx.fillStyle = k > 0.02 ? accent : idle;
-          ctx.globalAlpha = k > 0.02 ? 0.2 + 0.8 * k : 1;
+          ctx.arc(x, y, 1.1, 0, Math.PI * 2);
           ctx.fill();
+          if (k > 0) {
+            ctx.globalAlpha = Math.min(1, k * 2);
+            ctx.fillStyle = accent;
+            ctx.beginPath();
+            ctx.arc(x, y, 1.1 + 4.1 * k * k, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
       }
       ctx.globalAlpha = 1;
