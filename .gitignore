@@ -43,5 +43,12 @@ next-env.d.ts
 # source documents (papers, proposals) — not part of the build
 /src/contents/
 
+# photos of people stay on this machine and never go into git
+/public/images/members/
+/public/images/gallery/
+/public/images/news/
+/src/**/*.jpg
+/src/**/*.jpeg
+
 .vercel
 .env*
