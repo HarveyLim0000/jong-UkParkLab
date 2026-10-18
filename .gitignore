@@ -42,3 +42,6 @@ next-env.d.ts
 
 # source documents (papers, proposals) — not part of the build
 /src/contents/
+
+.vercel
+.env*

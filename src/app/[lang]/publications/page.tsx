@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import { PUBLICATIONS, LAB_AUTHORS, type Publication } from "@/lib/content";
+import { getDictionary } from "@/lib/i18n";
 
-export const metadata = { title: "Publications" };
+export async function generateMetadata({ params }: PageProps<"/[lang]/publications">): Promise<Metadata> {
+  const { t } = await getDictionary(params);
+  return { title: t.nav.publications };
+}
 
 function Entry({ p }: { p: Publication }) {
   return (
@@ -13,7 +18,7 @@ function Entry({ p }: { p: Publication }) {
           rel="noopener noreferrer"
         >
           {p.title}
-          {"\u00A0"}
+          {" "}
           <span className="link-arrow" aria-hidden="true">
             ↗
           </span>
@@ -29,14 +34,30 @@ function Entry({ p }: { p: Publication }) {
           </span>
         ))}
       </div>
-      <div className="meta italic">
-        {p.venue}, {p.year}
+      <div className="meta">
+        <span className="italic">
+          {p.venue}, {p.year}
+        </span>
+        {p.doi && (
+          <>
+            {" · "}
+            <a
+              href={`https://doi.org/${p.doi}`}
+              className="accent"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              DOI: {p.doi}
+            </a>
+          </>
+        )}
       </div>
     </li>
   );
 }
 
-export default function Publications() {
+export default async function Publications({ params }: PageProps<"/[lang]/publications">) {
+  const { t } = await getDictionary(params);
   const highlights = PUBLICATIONS.filter((p) => p.highlight);
   const years = [...new Set(PUBLICATIONS.map((p) => p.year))].sort((a, b) => b - a);
 
@@ -44,7 +65,7 @@ export default function Publications() {
     <div className="container page-top">
       {highlights.length > 0 && (
         <section className="section">
-          <h3 className="section-title tight">Selected</h3>
+          <h3 className="section-title tight">{t.publications.selected}</h3>
           <ul className="list">
             {highlights.map((p) => (
               <Entry key={p.title} p={p} />
