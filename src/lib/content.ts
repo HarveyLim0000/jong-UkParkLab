@@ -189,6 +189,7 @@ export const MEMBERS: Member[] = [
     name: { ko: "황윤호", en: "Yun-Ho Hwang" },
     role: "postdoc",
     research: SAMPLE_RESEARCH,
+    photo: "/images/members/yun-ho-hwang.jpg",
   },
   {
     name: { ko: "이다은", en: "Da-Eun Lee" },
@@ -221,11 +222,6 @@ export const MEMBERS: Member[] = [
     role: "undergrad",
     research: SAMPLE_RESEARCH,
     photo: "/images/members/jung-min-lee.jpg",
-  },
-  {
-    name: { ko: "신탄희", en: "Tan-Hee Shin" },
-    role: "alumni",
-    degree: { ko: "박사과정", en: "Ph.D. program" },
   },
 ];
 
