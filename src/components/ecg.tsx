@@ -3,163 +3,152 @@
 import { useEffect, useRef } from "react";
 
 /**
- * A dot field with a P-QRS-T complex travelling through it. Dots near the
- * current signal value grow and take the accent colour, so the waveform reads
- * as a moving trace rather than a drawn line. Beat intervals vary, so no two
- * screenfuls look alike.
+ * An ECG trace scrolling left across the hero, on a faint ECG-paper grid,
+ * all in straight lines. Every beat is a clear P-QRS-T, but the rate, the
+ * heights and the timing of the waves each swing on their own, out of step,
+ * so no two beats are alike. Every so often a small heart drawn as an ECG
+ * zigzag comes along.
  */
 
-// One row per beat: RR interval, then P, R, S, T amplitudes. Every beat is a
-// little different, as in a real recording.
-const BEATS = [
-  [1.0, 0.12, 1.0, 0.4, 0.28],
-  [0.78, 0.07, 0.84, 0.5, 0.2],
-  [1.22, 0.16, 0.96, 0.3, 0.36],
-  [0.92, 0.1, 0.78, 0.46, 0.24],
-  [1.34, 0.14, 1.0, 0.34, 0.38],
-  [0.84, 0.05, 0.9, 0.52, 0.18],
-  [1.06, 0.13, 0.82, 0.38, 0.3],
-  [0.74, 0.08, 0.72, 0.44, 0.16],
-  [1.18, 0.17, 0.98, 0.32, 0.34],
-  [0.96, 0.11, 0.86, 0.42, 0.26],
-];
-const BEAT_PX = 160; // baseline beat spacing
-const COMPLEX_PX = 105; // P-QRS-T lasts the same time whatever the interval
-const SPACING = 16; // dot grid pitch
-const SPEED = 40; // px per second
-const STEP = 2; // px between signal samples
+const H = 240; // viewBox height
+const BASE = 120; // baseline y, mid-band: waves go both ways
+const GRID = 50; // a 0.2 s paper square at 4 ms per unit
+const W = 2800; // wide enough for the widest screens at the band's height
+const SPEED = 75; // units per second the trace moves left
+const HEART = 1.6; // heart scale: ~51 units wide, ~46 tall
+const ZIGS = 24; // zigzag strokes across the heart, an even number
+const LIFT = 10; // how far the heart sits up, in heart-curve units
 
-const STARTS: number[] = [];
-let cycle = 0;
-for (const [rr] of BEATS) {
-  STARTS.push(cycle);
-  cycle += rr * BEAT_PX;
+type Pt = [number, number];
+
+/** An endless trace from a seed; the same seed always draws the same trace. */
+function createTrace(seed = 16) {
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const u = (lo: number, hi: number) => lo + (hi - lo) * rand();
+
+  const tape: Pt[] = [[0, BASE]];
+  // points as [x, height above the baseline]
+  const at = (...pts: Pt[]) => pts.forEach(([x, h]) => tape.push([x, BASE - h]));
+  const pen = () => tape[tape.length - 1][0];
+
+  // A slow swing between -1 and 1 along the trace: two sine waves of unrelated
+  // periods, each at a random phase
+  const swing = () => {
+    const [l1, l2, f1, f2] = [u(1400, 2400), u(350, 650), u(0, 7), u(0, 7)];
+    return (x: number) =>
+      0.65 * Math.sin((2 * Math.PI * x) / l1 + f1) + 0.35 * Math.sin((2 * Math.PI * x) / l2 + f2);
+  };
+  const [rate, size, pSize, sSize, tSize, pr, st] = Array.from({ length: 7 }, swing);
+
+  /** A P-QRS-T beat with its R at x, stretched by k. */
+  function beat(x: number, k: number) {
+    const g = 0.7 + 0.15 * size(x) + u(-0.28, 0.28); // each beat its own height
+    const p = (10 + 3 * pSize(x)) * u(0.6, 1.4);
+    const s = (22 + 12 * sSize(x)) * g;
+    const t = (20 + 6 * tSize(x)) * u(0.6, 1.35);
+    const q0 = x - 8 * k; // QRS onset
+    const p0 = q0 - (36 + 10 * pr(x)) * k; // P onset, a PR interval before
+    const t0 = x + (31 + 11 * st(x)) * k; // T onset, after the ST segment
+    at([p0, 0], [p0 + 9 * k, p], [p0 + 18 * k, 0]);
+    at([q0, 0], [x - 5 * k, -4 * g], [x, 95 * g], [x + 5 * k, -s], [x + 9 * k, 0]);
+    at([t0, 0], [t0 + 32 * k, t], [t0 + 50 * k, 0]);
+  }
+
+  /**
+   * A heart as an ECG zigzag: alternate vertices on the top and bottom edges
+   * of the classic heart curve, lifted so it stands mostly above the baseline,
+   * with straight lines up into it and down out of it.
+   */
+  function heart() {
+    let x = pen() + 30;
+    at([x, 0]);
+    for (let k = 0; k <= ZIGS; k += 1) {
+      const hx = -16 + (32 * k) / ZIGS;
+      const t = Math.asin(Math.cbrt(Math.abs(hx) / 16));
+      const a = (k - ZIGS / 2) % 2 ? t : Math.PI - t; // top and bottom edges in turn, the middle on the bottom tip
+      const h = 13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a) - 4;
+      at([x + HEART * (hx + 16), HEART * (h + LIFT)]);
+    }
+    x += 32 * HEART;
+    at([x, 0], [x + 50, 0]);
+  }
+
+  let r = -80; // x of the last R
+  let toHeart = 600; // distance to the next heart
+
+  /** Writes the trace on until it reaches x. */
+  function extendTo(x: number) {
+    while (pen() < x) {
+      const x0 = pen();
+      if (toHeart <= 0) {
+        heart();
+        toHeart = u(1300, 1800);
+      } else {
+        // a beat at a faster rate is a narrower beat
+        const rr = 135 + 45 * rate(r) + u(-5, 5);
+        const k = Math.sqrt(rr / 200);
+        r = Math.max(r + rr, pen() + 58 * k); // its P starts after the last T
+        beat(r, k);
+      }
+      toHeart -= pen() - x0;
+    }
+  }
+
+  return { tape, extendTo };
 }
 
-/** 0 → 1 → 0 straight-line spike over [a, b]. */
-const tri = (p: number, a: number, b: number) => 1 - Math.abs((2 * (p - a)) / (b - a) - 1);
+const path = (tape: Pt[], offset: number) =>
+  "M" + tape.map(([x, y]) => `${(x - offset).toFixed(1)} ${y.toFixed(1)}`).join("L");
 
-/** Normalised P-QRS-T amplitude over one complex. QRS is straight-edged so the peaks stay pointed. */
-function complex(p: number, [, P, R, S, T]: number[]) {
-  if (p < 0.08 || p >= 0.8) return 0;
-  if (p < 0.2) return P * Math.sin((Math.PI * (p - 0.08)) / 0.12); // P
-  if (p < 0.3) return 0;
-  if (p < 0.33) return -0.2 * tri(p, 0.3, 0.33); // Q
-  if (p < 0.39) return R * tri(p, 0.33, 0.39); // R
-  if (p < 0.43) return -S * tri(p, 0.39, 0.43); // S
-  if (p < 0.54) return 0;
-  return T * Math.sin((Math.PI * (p - 0.54)) / 0.26); // T
-}
+// The first screenful, rendered on the server; each client starts the same
+// trace from the same seed and moves on from here
+const FIRST = createTrace();
+FIRST.extendTo(W + 50);
+const FIRST_PATH = path(FIRST.tape, 0);
 
-function amplitudeAt(d: number) {
-  const dd = ((d % cycle) + cycle) % cycle;
-  let i = STARTS.length - 1;
-  while (i > 0 && STARTS[i] > dd) i -= 1;
-  // Slow baseline wander; whole periods per cycle so the loop has no seam.
-  const wander = 0.04 * Math.sin((4 * Math.PI * dd) / cycle);
-  return complex((dd - STARTS[i]) / COMPLEX_PX, BEATS[i]) + wander;
-}
-
-/** Distance from (px, py) to the segment (0, y1)–(STEP, y2). */
-function segDist(px: number, py: number, y1: number, y2: number) {
-  const dy = y2 - y1;
-  const t = Math.min(1, Math.max(0, (px * STEP + (py - y1) * dy) / (STEP * STEP + dy * dy)));
-  return Math.hypot(px - t * STEP, py - y1 - t * dy);
-}
+let PAPER = "";
+for (let x = 0; x <= W; x += GRID) PAPER += `M${x} 0V${H}`;
+for (let y = BASE % GRID; y <= H; y += GRID) PAPER += `M0 ${y}H${W}`;
 
 export default function Ecg() {
-  const ref = useRef<HTMLCanvasElement>(null);
+  const ref = useRef<SVGPathElement>(null);
 
   useEffect(() => {
-    const canvas = ref.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const line = ref.current;
+    if (!line || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    const styles = getComputedStyle(canvas);
-    const accent = styles.getPropertyValue("--color-accent").trim() || "#8c1d18";
-    const idle = styles.getPropertyValue("--color-placeholder").trim() || "#ebebeb";
-    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    let width = 0;
-    let height = 0;
-
-    const resize = () => {
-      const dpr = window.devicePixelRatio || 1;
-      width = canvas.clientWidth;
-      height = canvas.clientHeight;
-      canvas.width = Math.round(width * dpr);
-      canvas.height = Math.round(height * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-
-    const draw = (shift: number) => {
-      ctx.clearRect(0, 0, width, height);
-      const mid = height / 2;
-      const gain = height * 0.46;
-      const reach = SPACING * 0.8;
-
-      // Light each dot by its true distance to the trace, so brightness changes
-      // smoothly as the wave moves instead of popping column by column.
-      const x0 = -reach;
-      const ys: number[] = [];
-      for (let x = x0; x <= width + reach + STEP; x += STEP) {
-        ys.push(mid - amplitudeAt(x + shift) * gain);
-      }
-
-      for (let x = SPACING / 2; x < width; x += SPACING) {
-        const first = Math.floor((x - reach - x0) / STEP);
-        const last = Math.ceil((x + reach - x0) / STEP);
-        for (let y = SPACING / 2; y < height; y += SPACING) {
-          let near = Infinity;
-          for (let i = first; i < last; i += 1) {
-            near = Math.min(near, segDist(x - x0 - i * STEP, y, ys[i], ys[i + 1]));
-          }
-          const k = Math.max(0, 1 - near / reach);
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = idle;
-          ctx.beginPath();
-          ctx.arc(x, y, 1.1, 0, Math.PI * 2);
-          ctx.fill();
-          if (k > 0) {
-            ctx.globalAlpha = Math.min(1, k * 2);
-            ctx.fillStyle = accent;
-            ctx.beginPath();
-            ctx.arc(x, y, 1.1 + 4.1 * k * k, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-      }
-      ctx.globalAlpha = 1;
-    };
-
-    resize();
-    if (still) {
-      draw(0);
-      return;
-    }
-
+    const { tape, extendTo } = createTrace();
+    extendTo(W + 50);
+    let offset = 0;
+    let last = performance.now();
     let frame = 0;
-    let start = 0;
-    const loop = (now: number) => {
-      if (!start) start = now;
-      draw(((now - start) / 1000) * SPEED);
-      frame = requestAnimationFrame(loop);
+    const tick = (now: number) => {
+      // capped, so a tab left in the background doesn't jump on return
+      offset += (Math.min(now - last, 100) / 1000) * SPEED;
+      last = now;
+      while (tape.length > 2 && tape[1][0] < offset) tape.shift();
+      extendTo(offset + W + 50);
+      line.setAttribute("d", path(tape, offset));
+      frame = requestAnimationFrame(tick);
     };
-    frame = requestAnimationFrame(loop);
-
-    const observer = new ResizeObserver(resize);
-    observer.observe(canvas);
-
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   return (
-    <div className="ecg-band">
-      <canvas ref={ref} className="ecg" aria-hidden="true" />
+    <div className="ecg-band" aria-hidden="true">
+      <svg className="ecg" viewBox={`0 0 ${W} ${H}`} style={{ aspectRatio: `${W} / ${H}` }}>
+        <defs>
+          {/* the paper is strongest along the baseline and fades out above and below */}
+          <linearGradient id="ecg-paper-fade" gradientUnits="userSpaceOnUse" x2="0" y2={H}>
+            <stop offset="0.05" stopOpacity="0" />
+            <stop offset="0.5" stopOpacity="0.1" />
+            <stop offset="0.95" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path className="ecg-paper" d={PAPER} />
+        <path ref={ref} className="ecg-trace" d={FIRST_PATH} />
+      </svg>
     </div>
   );
 }
